@@ -1,0 +1,24 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "world.go",
+    ],
+    deps = [
+        "//server/pkg/entity:go_default_library",
+        "//server/pkg/systems:go_default_library",
+    ],
+    importpath = "github.com/chronojam/submariner/server/pkg/world",
+    visibility = ["//visibility:public"],
+)
+
+
+go_test(
+    name = "go_default_test",
+    srcs = [
+        "world_test.go",
+    ],
+    importpath = "github.com/chronojam/submariner/server/pkg/world",
+    embed = [":go_default_library"],
+)

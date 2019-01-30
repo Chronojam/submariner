@@ -1,0 +1,13 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "world_tile.go",
+    ],
+    deps = [
+        "@com_github_solarlune_resolv//resolv:go_default_library"
+    ],
+    importpath = "github.com/chronojam/submariner/server/pkg/types",
+    visibility = ["//visibility:public"],
+)
