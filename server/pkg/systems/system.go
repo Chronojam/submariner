@@ -1,5 +1,6 @@
 package systems
 
 type System interface {
-	Register(interface{}) error
+	// Update() Asks this system to perform an update loop
+	Update()
 }

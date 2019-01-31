@@ -3,9 +3,9 @@ load("@io_bazel_rules_go//go:def.bzl", "go_library")
 go_library(
     name = "go_default_library",
     srcs = [
-        "entity.go",
+        "components.go",
     ],
     deps = [],
-    importpath = "github.com/chronojam/submariner/server/pkg/entity",
+    importpath = "github.com/chronojam/submariner/server/pkg/components",
     visibility = ["//visibility:public"],
 )

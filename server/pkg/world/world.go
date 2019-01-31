@@ -1,54 +1,64 @@
-package loader
+package world
 
 import (
-	"log"
 	"sync"
 
-	"github.com/chronojam/submariner/server/pkg/entity"
-	"github.com/chronojam/submariner/server/pkg/systems"
+	"github.com/chronojam/submariner/server/pkg/components"
 )
 
 func New() *world {
 	return &world{
-		Entities: []*entity.Entity{},
-		systems:  []systems.System{},
-		mutex:    &sync.Mutex{},
+		entityMutex: &sync.Mutex{},
 	}
 }
 
 type world struct {
-	Entities []*entity.Entity `json:"Entities"`
-	systems  []systems.System
-	mutex    *sync.Mutex
+	entityMutex *sync.Mutex
+
+	cNames []components.Name
+
+	// bit flags to quickly check if a given object has something
+	cFlags []int
 }
 
-func (w *world) AddEntity(e *entity.Entity) int {
-	// Append is considered to be slightly slower than assign, but we can have dynamically sized
-	// slices, so lets use that.
-	w.mutex.Lock()
-	w.Entities = append(w.Entities, e)
-	w.mutex.Unlock()
+// AddEntity adds an empty entity to the world
+func (w *world) AddEntity() int {
+	w.cNames = append(w.cNames, "")
+	w.cFlags = append(w.cFlags, 0)
+	id := len(w.cFlags) - 1
 
-	for _, s := range w.systems {
-		if err := s.Register(e); err != nil {
-			log.Printf("errored while registering system")
-		}
-	}
-	return len(w.Entities)
+	return id
 }
 
-func (w *world) AddSystem(s systems.System) {
-	// Adding systems is expensive, so only do it at game initialization
-	w.mutex.Lock()
-	for i := 0; i < len(w.Entities); i++ {
-		for _, v := range w.Entities[i].Components {
-			// Decide if we're intrested in this component
-			if err := s.Register(v); err != nil {
-				log.Printf("errored while registering system")
-			}
+func (w *world) AddComponent(eid int, comp components.Component) {
+	switch v := comp.(type) {
+	case components.Name:
+		w.cNames[eid] = v
+	}
+
+	w.cFlags[eid] |= comp.Type()
+}
+
+func (w *world) RemoveComponent(eid int, cid int) {
+	switch cid {
+	case components.NAME:
+		if len(w.cNames) == eid {
+			// We're the last item
+			w.cNames = w.cNames[:eid]
+			break
+		}
+		// We're somewhere in the middle of the slice.
+		w.cNames = append(w.cNames[:eid], w.cNames[eid+1:]...)
+	}
+	w.cFlags[eid] = (w.cFlags[eid] &^ cid)
+}
+
+func (w *world) FindAllEntitiesByComponentType(cid int) []int {
+	eids := []int{}
+	for i := range w.cFlags {
+		if (uint(w.cFlags[i]) & (1<<uint(cid) - 1)) != 0 {
+			eids = append(eids, i)
 		}
 	}
-	// System is upto date, lets add it.
-	w.systems = append(w.systems, s)
-	w.mutex.Unlock()
+	return eids
 }

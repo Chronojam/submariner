@@ -6,7 +6,7 @@ go_library(
         "world.go",
     ],
     deps = [
-        "//server/pkg/entity:go_default_library",
+        "//server/pkg/components:go_default_library",
         "//server/pkg/systems:go_default_library",
     ],
     importpath = "github.com/chronojam/submariner/server/pkg/world",
