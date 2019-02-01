@@ -5,7 +5,8 @@ go_library(
     srcs = [
         "system.go",
     ],
-    deps = [],
+    deps = [
+    ],
     importpath = "github.com/chronojam/submariner/server/pkg/systems",
     visibility = ["//visibility:public"],
 )

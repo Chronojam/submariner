@@ -4,61 +4,68 @@ import (
 	"sync"
 
 	"github.com/chronojam/submariner/server/pkg/components"
+	"github.com/chronojam/submariner/server/pkg/systems"
 )
 
-func New() *world {
-	return &world{
+func New() *World {
+	return &World{
 		entityMutex: &sync.Mutex{},
 	}
 }
 
-type world struct {
+type World struct {
 	entityMutex *sync.Mutex
 
-	cNames []components.Name
+	// systems
+	Systems []systems.System
+
+	// components
+	CNames    []components.NameComponent
+	CImages   []components.ImageComponent
+	CCollider []components.ColliderComponent
+	CPlayer   []components.PlayerComponent
 
 	// bit flags to quickly check if a given object has something
-	cFlags []int
+	cFlags []components.ComponentBit
 }
 
-// AddEntity adds an empty entity to the world
-func (w *world) AddEntity() int {
-	w.cNames = append(w.cNames, "")
+// AddEntity adds an empty entity to the World
+func (w *World) AddEntity() int {
+	w.CNames = append(w.CNames, "")
+	w.CImages = append(w.CImages, "")
+	w.CCollider = append(w.CPositions, components.ColliderComponent{})
+	w.CPlayer = append(w.CPlayer, components.PlayerComponent{})
 	w.cFlags = append(w.cFlags, 0)
 	id := len(w.cFlags) - 1
 
 	return id
 }
 
-func (w *world) AddComponent(eid int, comp components.Component) {
+func (w *World) AddOrUpdateComponent(eid int, comp components.Component) {
 	switch v := comp.(type) {
-	case components.Name:
-		w.cNames[eid] = v
+	case components.NameComponent:
+		w.CNames[eid] = v
+	case components.ImageComponent:
+		w.CImages[eid] = v
+	case components.ColliderComponent:
+		w.CCollider[eid] = v
+	case components.PlayerComponent:
+		w.CPlayer[eid] = v
 	}
 
-	w.cFlags[eid] |= comp.Type()
+	w.cFlags[eid] |= comp.Bit()
 }
 
-func (w *world) RemoveComponent(eid int, cid int) {
-	switch cid {
-	case components.NAME:
-		if len(w.cNames) == eid {
-			// We're the last item
-			w.cNames = w.cNames[:eid]
-			break
-		}
-		// We're somewhere in the middle of the slice.
-		w.cNames = append(w.cNames[:eid], w.cNames[eid+1:]...)
-	}
+func (w *World) RemoveComponent(eid int, cid components.ComponentBit) {
 	w.cFlags[eid] = (w.cFlags[eid] &^ cid)
 }
 
-func (w *world) FindAllEntitiesByComponentType(cid int) []int {
-	eids := []int{}
-	for i := range w.cFlags {
-		if (uint(w.cFlags[i]) & (1<<uint(cid) - 1)) != 0 {
-			eids = append(eids, i)
-		}
+func (w *World) AddSystem(s systems.System) {
+	w.Systems = append(w.Systems, s)
+}
+
+func (w *World) Update() {
+	for _, s := range w.Systems {
+		s.Update()
 	}
-	return eids
 }

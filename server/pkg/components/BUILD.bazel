@@ -5,7 +5,9 @@ go_library(
     srcs = [
         "components.go",
     ],
-    deps = [],
+    deps = [
+        "@com_github_solarlune_resolv//resolv:go_default_library"
+    ],
     importpath = "github.com/chronojam/submariner/server/pkg/components",
     visibility = ["//visibility:public"],
 )

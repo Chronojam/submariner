@@ -1,17 +1,46 @@
 package components
 
-// Component represents the concrete implementation of
-// a Component.
+import (
+	"github.com/SolarLune/resolv/resolv"
+)
+
+// ComponentBit represents the bit a component represents.
+type ComponentBit uint
+
+// ComponentIndex represents the index in the entity matrix
+// contains the instance of this component
+type ComponentIndex uint
+
+// Component represents the actual component implementation itself.
 type Component interface {
-	Type() int
+	Bit() ComponentBit
+	Index() ComponentIndex
 }
 
 const (
-	UNKNOWN  = 1 << iota
-	NAME     = 1 << iota
-	POSITION = 1 << iota
+	UNKNOWN ComponentBit = 1 << iota
+	NAME
+	IMAGE
+	COLLIDER
+	PLAYER
 )
 
-type Name string
+type NameComponent string
 
-func (n Name) Type() int { return NAME }
+func (n NameComponent) Bit() ComponentBit     { return NAME }
+func (n NameComponent) Index() ComponentIndex { return 1 }
+
+type ImageComponent string
+
+func (i ImageComponent) Bit() ComponentBit     { return IMAGE }
+func (i ImageComponent) Index() ComponentIndex { return 2 }
+
+type ColliderComponent resolv.Shape
+
+func (c ColliderComponent) Bit() ComponentBit     { return COLLIDER }
+func (c ColliderComponent) Index() ComponentIndex { return 3 }
+
+type PlayerComponent struct{}
+
+func (p PlayerComponent) Bit() ComponentBit     { return PLAYER }
+func (p PlayerComponent) Index() ComponentIndex { return 4 }
