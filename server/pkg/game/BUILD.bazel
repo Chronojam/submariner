@@ -3,22 +3,22 @@ load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 go_library(
     name = "go_default_library",
     srcs = [
-        "server.go",
+        "state.go",
     ],
     deps = [
-        "//server/pkg/config:go_default_library",
-        "//server/pkg/game:go_default_library",
         "@com_github_gorilla_websocket//:go_default_library",
+       # "@com_github_solarlune_resolv//:go_default_library",
+
     ],
-    importpath = "github.com/chronojam/submariner/server/pkg/server",
+    importpath = "github.com/chronojam/submariner/server/pkg/game",
     visibility = ["//visibility:public"]
 )
 
 go_test(
     name = "go_default_test",
     srcs = [
-        "server_test.go",
+        "state_test.go",
     ],
-    importpath = "github.com/chronojam/submariner/server/pkg/server",
+    importpath = "github.com/chronojam/submariner/server/pkg/game",
     embed = [":go_default_library"],
 )

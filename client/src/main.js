@@ -1,5 +1,23 @@
 import { Shape, Stage } from '@createjs/easeljs';
 
+
+// Test websocket connections
+var ws = new WebSocket("ws://localhost:8000/ws/connect");
+ws.onopen = function() {
+    ws.send("Message to send");
+ };
+  
+ ws.onmessage = function (evt) { 
+    var received_msg = evt.data;
+    console.log(received_msg)
+ };
+  
+ ws.onclose = function() { 
+    console.log("Finished.")    
+    // websocket is closed.
+ };
+
+
 // Do some initialization
 // Set size of canvas
 const canvas = document.getElementById("screen");

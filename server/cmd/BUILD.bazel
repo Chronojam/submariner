@@ -1,21 +1,21 @@
 load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
 
-#go_library(
-#    name = "go_default_library",
-#    srcs = [
-#        ".go",
- #       "bar.go",
- #   ],
-#    deps = [
-#        "//tools:go_default_library",
-#        "@org_golang_x_utils//stuff:go_default_library",
-#    ],
-#    importpath = "github.com/example/project/foo",
-#    visibility = ["//visibility:public"],
-#)
+go_library(
+    name = "go_default_library",
+    srcs = [],
+    deps = [
+        "//server/pkg/config:go_default_library",
+        "//server/pkg/server:go_default_library",
+    ],
+    importpath = "github.com/chronojam/submariner/server/cmd",
+    visibility = ["//visibility:public"],
+)
 
 go_binary(
     name = "server",
     srcs = ["main.go"],
-    deps = [],
+    deps = [
+        "//server/pkg/config:go_default_library",
+        "//server/pkg/server:go_default_library",
+    ],
 )

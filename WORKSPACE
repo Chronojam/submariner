@@ -22,6 +22,7 @@ go_repository(
     urls = ["https://github.com/gorilla/websocket/archive/v1.4.0.tar.gz"],
     sha256 = "2b5743c72bd0930c5a80e49c0138b5b7d27fa7c085efd0c86805cccfa7220c9d",
     type = "tar.gz",
+    strip_prefix = "websocket-1.4.0",
 )
 go_repository(
     name = "com_github_solarlune_resolv",
