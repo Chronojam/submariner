@@ -7,8 +7,7 @@ import (
 
 // The entity representing the character on the server.
 type PlayerCharacter struct {
-	//	Collider *resolv.Circle
-	State *PlayerState
+	
 }
 
 type Client struct {

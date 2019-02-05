@@ -19,19 +19,53 @@
 <body>
 	<div class="container">
 		<div class="row">
-			<div class="col-sm-12 col-md-5 col-lg-7">
-				<h1>Hello</h1>
-			</div>
-		</div>
+			<div class="col-sm"></div>
+			<!-- Adding some flex properties to center the form and some height to the page, these can be omitted -->
 
-		<div class="row">
-			<div class="col-sm-12 col-md-5 col-lg-7">
-				<canvas
-					id="screen"
-					width="1000"
-					height="2000"
-				></canvas>
+			<div
+				class="col-sm-12 col-md-8 col-lg-6"
+				style="height: calc(100vh - 10.25rem); display: flex; align-items: center; flex: 0 1 auto;"
+			>
+				<form>
+					<fieldset>
+						<legend>Join Game</legend>
+
+						<div class="input-group fluid">
+							<label
+								for="username"
+								style="width: 80px;"
+							>Username</label>
+
+							<input
+								type="text"
+								value=""
+								id="username"
+								placeholder="Username"
+							></input>
+						</div>
+
+						<div class="input-group fluid">
+							<label
+								for="pwd"
+								style="width: 80px;"
+							>Game ID</label>
+
+							<input
+								type="text"
+								value=""
+								id="pwd"
+								placeholder="Game ID"
+							></input>
+						</div>
+
+						<div class="input-group fluid">
+							<button class="primary">Join</button>
+						</div>
+					</fieldset>
+				</form>
 			</div>
+
+			<div class="col-sm"></div>
 		</div>
 	</div>
 
