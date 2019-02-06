@@ -32,3 +32,11 @@ go_repository(
     type = "tar.gz",
     strip_prefix = "SolarLune-resolv-c324bac",
 )
+go_repository(
+    name = "com_github_dgrijalva_jwtgo",
+    importpath = "github.com/dgrijalva/jwt-go",
+    urls = ["https://github.com/dgrijalva/jwt-go/archive/v3.2.0.tar.gz"],
+    sha256 = "197465ef53219f3aeb1a6940b70e16d288fe4e4108d4831b91ea101118440e63",
+    type = "tar.gz",
+    strip_prefix = "jwt-go-3.2.0",
+)

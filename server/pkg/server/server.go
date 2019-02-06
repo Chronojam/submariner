@@ -12,10 +12,15 @@ import (
 	"github.com/chronojam/submariner/server/pkg/config"
 	"github.com/chronojam/submariner/server/pkg/game"
 	"github.com/gorilla/websocket"
+	"github.com/dgrijalva/jwt-go"
 )
 
 const (
 	CLIENT_UPDATE_FREQUENCY = time.Second
+)
+
+var (
+	JWT_SIGNING_KEY = []byte("HelloWorld")
 )
 
 // New creates a new instance of the submariner Server
@@ -40,6 +45,9 @@ type Server struct {
 	allowedOrigins []string
 	stopChan       chan int
 
+
+	authenticationTokens map[string]int
+
 	// Game gubbins.
 	// connections and playerstates maintain a 1-2-1 mapping
 	// i.e connections[i] belongs to playerStates[i]
@@ -52,28 +60,16 @@ type Server struct {
 	gameModes  []*game.GameMode
 }
 
-type JoinGameRequest struct {
-	Username string `json:"username"`
-	GameID   int    `json:"gameid"`
-}
-
-type JoinGameResponse struct {
-	Error string
-	Token int
-}
-
-type NewGameRequest struct {
-	Username string `json:"username"`
-}
-
-type NewGameResponse struct {
-	GameID int
-	Error  string
+type UserClaims struct {
+	Username string
+	GameID   int
+	ID       int
+	jwt.StandardClaims
 }
 
 func (s *Server) Serve() {
 	http.HandleFunc("/game/join", s.JoinGame)
-	http.HandleFunc("/game/new", s.NewGame)
+	http.HandleFunc("/game/create", s.CreateGame)
 	http.HandleFunc("/ws/connect", s.NewClient)
 	var addr = fmt.Sprintf("%s:%d", s.config.IP, s.config.Port)
 	log.Printf("Server starting on: %s", addr)
@@ -87,13 +83,13 @@ func (s *Server) setupCORS(w http.ResponseWriter, req *http.Request) {
 	w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
 }
 
-func (s *Server) NewGame(w http.ResponseWriter, r *http.Request) {
+func (s *Server) CreateGame(w http.ResponseWriter, r *http.Request) {
 	s.setupCORS(w, r)
 	if r.Method == "OPTIONS" {
 		return
 	}
 
-	uResponse := &NewGameResponse{}
+	uResponse := &CreateGameResponse{}
 	defer func() {
 		b, _ := json.Marshal(uResponse)
 		w.Write(b)
@@ -106,16 +102,11 @@ func (s *Server) NewGame(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(500)
 		return
 	}
-	var req NewGameRequest
+	var req CreateGameRequest
 	err = json.Unmarshal(b, &req)
 	if err != nil {
 		log.Printf("Error while unmarshalling body in server.NewGame(): \n%v", err)
 		uResponse.Error = "Incorrect Input for Username; Expected Username(string);"
-		w.WriteHeader(400)
-		return
-	}
-	if req.Username == "" {
-		uResponse.Error = "Invalid Username"
 		w.WriteHeader(400)
 		return
 	}
@@ -129,13 +120,12 @@ func (s *Server) JoinGame(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "OPTIONS" {
 		return
 	}
+	defer r.Body.Close()
 	uResponse := &JoinGameResponse{}
 	defer func() {
 		b, _ := json.Marshal(uResponse)
 		w.Write(b)
 	}()
-
-	defer r.Body.Close()
 	b, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		log.Printf("Error while reading server.JoinGame body request.\n %v", err)
@@ -163,14 +153,30 @@ func (s *Server) JoinGame(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+
 	// Empty init and reserve thier place in the array.
 	s.playerStates = append(s.playerStates, &game.PlayerState{})
 	s.connections = append(s.connections, nil)
 	ID := len(s.playerStates) - 1
 	s.gameModes[req.GameID].Players = append(s.gameModes[req.GameID].Players, ID)
 
-	// Should return a proper token we can validate here, but for now lets just return the index
-	uResponse.Token = ID
+	// Create a new JWT for this user.
+	claims := UserClaims{
+		Username: req.Username,
+		GameID: req.GameID,
+		ID: ID,
+	}
+	claims.Issuer = "submariner.chronojam.co.uk"
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	ss, err := token.SignedString(JWT_SIGNING_KEY)
+	if err != nil {
+		uResponse.Error = "Error generating JWT"
+		w.WriteHeader(500)
+		return
+	}
+
+	uResponse.Token = ss
 }
 
 func (s *Server) BeginUpdatePush() {
