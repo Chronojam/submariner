@@ -11,5 +11,6 @@ type JoinGameResponse struct {
 
 type CreateGameRequest struct{}
 type CreateGameResponse struct {
-	Error string `json:"error"`
+	Error  string `json:"error"`
+	GameID int    `json:"gameid"`
 }

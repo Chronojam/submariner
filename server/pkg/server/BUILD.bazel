@@ -10,7 +10,7 @@ go_library(
         "//server/pkg/config:go_default_library",
         "//server/pkg/game:go_default_library",
         "@com_github_gorilla_websocket//:go_default_library",
-        "@com_github_dgrijalva_jwtgo//:go_default_library",
+        "@com_github_google_uuid//:go_default_library",
     ],
     importpath = "github.com/chronojam/submariner/server/pkg/server",
     visibility = ["//visibility:public"]

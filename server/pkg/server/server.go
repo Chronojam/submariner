@@ -6,21 +6,16 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/chronojam/submariner/server/pkg/config"
 	"github.com/chronojam/submariner/server/pkg/game"
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
-	"github.com/dgrijalva/jwt-go"
 )
 
 const (
 	CLIENT_UPDATE_FREQUENCY = time.Second
-)
-
-var (
-	JWT_SIGNING_KEY = []byte("HelloWorld")
 )
 
 // New creates a new instance of the submariner Server
@@ -30,11 +25,11 @@ func New(c *config.Config) *Server {
 		state:          &game.GameState{},
 		allowedOrigins: c.AllowedOrigins,
 		stopChan:       make(chan int),
-
-		connections:  []*websocket.Conn{},
-		playerStates: []*game.PlayerState{},
-		gameStates:   []*game.GameState{},
-		gameModes:    []*game.GameMode{},
+		sessions:       map[string]int{},
+		connections:    []*websocket.Conn{},
+		playerStates:   []*game.PlayerState{},
+		gameStates:     []*game.GameState{},
+		gameModes:      []*game.GameMode{},
 	}
 }
 
@@ -45,9 +40,7 @@ type Server struct {
 	allowedOrigins []string
 	stopChan       chan int
 
-
-	authenticationTokens map[string]int
-
+	sessions map[string]int
 	// Game gubbins.
 	// connections and playerstates maintain a 1-2-1 mapping
 	// i.e connections[i] belongs to playerStates[i]
@@ -58,13 +51,6 @@ type Server struct {
 	// i.e gameStates[i] belongs to gameModes[i]
 	gameStates []*game.GameState
 	gameModes  []*game.GameMode
-}
-
-type UserClaims struct {
-	Username string
-	GameID   int
-	ID       int
-	jwt.StandardClaims
 }
 
 func (s *Server) Serve() {
@@ -113,6 +99,8 @@ func (s *Server) CreateGame(w http.ResponseWriter, r *http.Request) {
 
 	s.gameModes = append(s.gameModes, &game.GameMode{})
 	s.gameStates = append(s.gameStates, &game.GameState{})
+
+	uResponse.GameID = len(s.gameModes) - 1
 }
 
 func (s *Server) JoinGame(w http.ResponseWriter, r *http.Request) {
@@ -153,30 +141,19 @@ func (s *Server) JoinGame(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-
 	// Empty init and reserve thier place in the array.
 	s.playerStates = append(s.playerStates, &game.PlayerState{})
 	s.connections = append(s.connections, nil)
 	ID := len(s.playerStates) - 1
 	s.gameModes[req.GameID].Players = append(s.gameModes[req.GameID].Players, ID)
 
-	// Create a new JWT for this user.
-	claims := UserClaims{
-		Username: req.Username,
-		GameID: req.GameID,
-		ID: ID,
-	}
-	claims.Issuer = "submariner.chronojam.co.uk"
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	ss, err := token.SignedString(JWT_SIGNING_KEY)
-	if err != nil {
-		uResponse.Error = "Error generating JWT"
-		w.WriteHeader(500)
-		return
-	}
-
-	uResponse.Token = ss
+	Session := uuid.New().String()
+	http.SetCookie(w, &http.Cookie{
+		Name:  "SessionID",
+		Value: Session,
+	})
+	s.sessions[Session] = ID
+	uResponse.Token = Session
 }
 
 func (s *Server) BeginUpdatePush() {
@@ -186,6 +163,9 @@ func (s *Server) BeginUpdatePush() {
 		case <-ticker.C:
 			for i, gm := range s.gameModes {
 				for _, j := range gm.Players {
+					if s.connections[j] == nil {
+						continue
+					}
 					err := s.connections[j].WriteJSON(s.playerStates[j])
 					if err != nil {
 						log.Printf("Error while sending playerstate to client. %v", err)
@@ -233,6 +213,15 @@ func (s *Server) ValidateAndApplyState(proposed game.PlayerState, index int) err
 }
 
 func (s *Server) NewClient(w http.ResponseWriter, r *http.Request) {
+	sessionId, err := r.Cookie("SessionID")
+	if err != nil {
+		w.WriteHeader(403)
+		return
+	}
+	if _, ok := s.sessions[sessionId.Value]; !ok {
+		w.WriteHeader(403)
+		return
+	}
 	sock := websocket.Upgrader{
 		CheckOrigin: func(r *http.Request) bool {
 			incomingFrom := r.Header.Get("Origin")
@@ -249,21 +238,10 @@ func (s *Server) NewClient(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Could not open connection %v", err)
 		return
 	}
-	tok := r.URL.Query().Get("token")
-	// check if we're a valid token.
-	i, err := strconv.ParseInt(tok, 10, 8)
-	if err != nil {
-		// Nope
-		return
-	}
 
-	j := int(i)
-
+	id := s.sessions[sessionId.Value]
 	// Guess we're valid?
-	if j >= 0 && j <= len(s.playerStates) {
-		s.connections[j] = c
-		s.playerStates[j] = &game.PlayerState{}
-		go s.ReadIncomingMessages(c, j)
-	}
-
+	s.connections[id] = c
+	s.playerStates[id] = &game.PlayerState{}
+	go s.ReadIncomingMessages(c, id)
 }
