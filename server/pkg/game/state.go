@@ -7,7 +7,6 @@ import (
 
 // The entity representing the character on the server.
 type PlayerCharacter struct {
-	
 }
 
 type Client struct {
@@ -35,4 +34,6 @@ type PlayerState struct {
 }
 
 type GameState struct{}
-type GameMode struct{}
+type GameMode struct {
+	Players []int
+}
