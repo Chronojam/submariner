@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -69,38 +70,79 @@ func (s *Server) setupCORS(w http.ResponseWriter, req *http.Request) {
 	w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
 }
 
+func (s *Server) createGame(req *CreateGameRequest) (*CreateGameResponse, error) {
+	uResponse := &CreateGameResponse{}
+	s.gameModes = append(s.gameModes, &game.GameMode{})
+	s.gameStates = append(s.gameStates, &game.GameState{})
+
+	uResponse.GameID = len(s.gameModes) - 1
+	return uResponse, nil
+}
+
+func (s *Server) joinGame(req *JoinGameRequest) (*JoinGameResponse, error) {
+	uResponse := &JoinGameResponse{}
+	s.playerStates = append(s.playerStates, &game.PlayerState{})
+	s.connections = append(s.connections, nil)
+	ID := len(s.playerStates) - 1
+	s.gameModes[req.GameID].Players = append(s.gameModes[req.GameID].Players, ID)
+
+	Session := uuid.New().String()
+	uResponse.Token = Session
+
+	return uResponse, nil
+}
+
+func (s *Server) marshalBodyToRequest(r *http.Request, i interface{}) error {
+	if r.Body == nil || r.Method != "POST" {
+		log.Printf("Improper request type")
+		return errors.New("Bad Request.")
+	}
+	defer r.Body.Close()
+
+	b, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		log.Printf("Error while reading body.")
+		return errors.New("Internal Server Error.")
+	}
+
+	err = json.Unmarshal(b, i)
+	if err != nil {
+		log.Printf("Error while unmarshalling body.")
+		return errors.New("Bad request; Improper JSON.")
+	}
+
+	return nil
+}
+
 func (s *Server) CreateGame(w http.ResponseWriter, r *http.Request) {
 	s.setupCORS(w, r)
 	if r.Method == "OPTIONS" {
 		return
 	}
-
-	uResponse := &CreateGameResponse{}
-	defer func() {
-		b, _ := json.Marshal(uResponse)
-		w.Write(b)
-	}()
-	defer r.Body.Close()
-	b, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		log.Printf("Error while reading server.NewGame body request. \n %v", err)
-		uResponse.Error = "Internal Server Error"
-		w.WriteHeader(500)
-		return
-	}
 	var req CreateGameRequest
-	err = json.Unmarshal(b, &req)
+	err := s.marshalBodyToRequest(r, &req)
 	if err != nil {
-		log.Printf("Error while unmarshalling body in server.NewGame(): \n%v", err)
-		uResponse.Error = "Incorrect Input for Username; Expected Username(string);"
-		w.WriteHeader(400)
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(err.Error()))
+		return
+	}
+	resp, err := s.createGame(&req)
+	if err != nil {
+		log.Printf("Error while creating game: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(err.Error()))
 		return
 	}
 
-	s.gameModes = append(s.gameModes, &game.GameMode{})
-	s.gameStates = append(s.gameStates, &game.GameState{})
+	b, err := json.Marshal(resp)
+	if err != nil {
+		log.Printf("Error while marshaling response.")
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(err.Error()))
+		return
+	}
 
-	uResponse.GameID = len(s.gameModes) - 1
+	w.Write(b)
 }
 
 func (s *Server) JoinGame(w http.ResponseWriter, r *http.Request) {
@@ -141,19 +183,14 @@ func (s *Server) JoinGame(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Empty init and reserve thier place in the array.
-	s.playerStates = append(s.playerStates, &game.PlayerState{})
-	s.connections = append(s.connections, nil)
-	ID := len(s.playerStates) - 1
-	s.gameModes[req.GameID].Players = append(s.gameModes[req.GameID].Players, ID)
-
-	Session := uuid.New().String()
+	resp, err := s.joinGame(&req)
+	if err != nil {
+		panic("hello")
+	}
 	http.SetCookie(w, &http.Cookie{
 		Name:  "SessionID",
-		Value: Session,
+		Value: resp.Token,
 	})
-	s.sessions[Session] = ID
-	uResponse.Token = Session
 }
 
 func (s *Server) BeginUpdatePush() {

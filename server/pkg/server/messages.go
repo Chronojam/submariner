@@ -5,12 +5,11 @@ type JoinGameRequest struct {
 	GameID   int    `json:"gameid"`
 }
 type JoinGameResponse struct {
+	Error string
 	Token string `json:"token"`
-	Error string `json:"error"`
 }
 
 type CreateGameRequest struct{}
 type CreateGameResponse struct {
-	Error  string `json:"error"`
-	GameID int    `json:"gameid"`
+	GameID int `json:"gameid"`
 }
